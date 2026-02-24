@@ -288,6 +288,14 @@ int main(int argc, char** argv)
             cv::resize(depth, depth, cv::Size(width, height));
         }
 
+        static double last_t = -1;
+        if (last_t > 0) {
+          std::cerr << std::fixed << std::setprecision(9)
+                    << "t=" << t << " dt=" << (t - last_t)
+                    << " imu_sent=" << vImuMeas.size() << "\n";
+        }
+        last_t = t;
+
         // Track
         SLAM.TrackRGBD(im, depth, t, vImuMeas);
 
