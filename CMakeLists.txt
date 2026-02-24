@@ -287,6 +287,9 @@ endif()
 # RGB-D inertial examples
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples_old/RGB-D-Inertial)
 
+add_executable(tum_rgbd_imu 
+        Examples/RGB-D-Inertial/tum_rgbd_imu.cc)
+target_link_libraries(tum_rgbd_imu ${PROJECT_NAME})
 if(realsense2_FOUND)
     add_executable(rgbd_inertial_realsense_D435i_old
             Examples_old/RGB-D-Inertial/rgbd_inertial_realsense_D435i.cc)
