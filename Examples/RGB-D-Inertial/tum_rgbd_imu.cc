@@ -115,6 +115,24 @@ static std::vector<RGBDFrame> load_association(const std::string& dataset_root,
     return frames;
 }
 
+static std::vector<IMUSample> downsample_imu(const std::vector<IMUSample>& in, double target_hz)
+{
+    std::vector<IMUSample> out;
+    out.reserve(in.size());
+    const double min_dt = 1.0 / target_hz;
+
+    double last_t = -1e100;
+    for (const auto& s : in)
+    {
+        if (s.t - last_t >= min_dt * 0.999) // ほぼ等間隔に
+        {
+            out.push_back(s);
+            last_t = s.t;
+        }
+    }
+    return out;
+}
+
 static bool parse_imu_line_guess_format(const std::string& line, IMUSample& out)
 {
     // Skip comments/empty
@@ -131,30 +149,9 @@ static bool parse_imu_line_guess_format(const std::string& line, IMUSample& out)
     double t,a,b,c,d,e,f;
     if (!(iss >> t >> a >> b >> c >> d >> e >> f)) return false;
 
-    // Now we need to decide whether it is:
-    //  (t wx wy wz ax ay az)  OR  (t ax ay az wx wy wz)
-    // Heuristic: accel magnitude should be around 9.8 (if gravity included),
-    // gyro magnitude usually < ~10 rad/s in normal motion.
-    auto mag3 = [](double x,double y,double z){ return std::sqrt(x*x+y*y+z*z); };
-
-    double mag_first3  = mag3(a,b,c);
-    double mag_last3   = mag3(d,e,f);
-
-    // If first3 looks like gyro (small) and last3 like accel (~9-20), treat as gyro-first.
-    bool gyro_first = (mag_first3 < 20.0 && mag_last3 > 5.0);
-
     out.t = t;
-
-    if (gyro_first)
-    {
-        out.wx = a; out.wy = b; out.wz = c;
-        out.ax = d; out.ay = e; out.az = f;
-    }
-    else
-    {
-        out.ax = a; out.ay = b; out.az = c;
-        out.wx = d; out.wy = e; out.wz = f;
-    }
+    out.wx = a; out.wy = b; out.wz = c;
+    out.ax = d; out.ay = e; out.az = f;
     return true;
 }
 
@@ -234,6 +231,7 @@ int main(int argc, char** argv)
     // Load dataset
     std::vector<RGBDFrame> frames = load_association(dataset_root, assoc_path);
     std::vector<IMUSample> imu    = load_imu(imu_path);
+    // imu = downsample_imu(imu, 200.0);
 
     // Create SLAM system (IMU_RGBD)
     ORB_SLAM3::System SLAM(vocab_path, settings_path, ORB_SLAM3::System::IMU_RGBD,
